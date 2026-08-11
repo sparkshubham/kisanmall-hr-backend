@@ -1,32 +1,45 @@
 # Kisan Mall Staff Management API
 
-Express + Prisma + PostgreSQL backend. Same structure as the stock-verify server.
+Structure matches stock-verify / `test-backend`:
 
-## Setup
+```text
+server/
+  api/index.js          # Vercel serverless entry
+  vercel.json
+  VERCEL_ENV.txt
+  prisma/               # schema + seed
+  src/
+    app.js              # Express app
+    server.js           # Local Node server
+    config/             # env, dbUrl
+    middleware/         # auth, errorHandler
+    utils/              # prisma, jwt, response, asyncHandler
+    services/           # attendance, face, payroll
+    routes/
+      index.js          # /api/health, /api/auth, /api/admin, /api/staff
+      auth.js
+      admin/
+      staff/
+```
+
+## API map
+
+| Area | Base path |
+|------|-----------|
+| Health | `GET /api/health` |
+| Auth | `POST /api/auth/login`, `GET /api/auth/me` |
+| Admin | `/api/admin/*` |
+| Staff | `/api/staff/*` |
+
+## Run
 
 ```bash
-cd server
-cp .env.example .env
-# set DATABASE_URL / DIRECT_URL / JWT_SECRET
 npm install
 npx prisma db push
 npm run db:seed
 npm run dev
 ```
 
-API runs on `http://localhost:5001`.
+## Deploy
 
-## Demo logins
-
-| Role | Mobile | Password |
-| --- | --- | --- |
-| Super Admin | 9999999999 | admin123 |
-| HR Admin | 9999999998 | admin123 |
-| Manager | 9000000018 | staff123 |
-| Mukesh (staff) | 9000000014 | staff123 |
-| Pooja (staff) | 9000000007 | staff123 |
-
-## Docs
-
-- Health: `/api/health`
-- Swagger: `/api/docs`
+See `../DEPLOY.md`.
