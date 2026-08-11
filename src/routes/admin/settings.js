@@ -16,13 +16,21 @@ router.get(
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     res.json({
       settings: {
-        graceMinutes: 10,
-        attendanceMethods: ['FACE', 'GPS'],
-        requireFace: true,
-        requireGps: false,
-        sessionHours: 12,
-        biometricRetentionDays: 365,
-        ...map,
+        graceMinutes: Number(map.graceMinutes ?? 10),
+        requireFace: map.requireFace !== false && map.requireFace !== 'false',
+        requireGeofence:
+          map.requireGeofence !== false &&
+          map.requireGeofence !== 'false' &&
+          map.requireGps !== false &&
+          map.requireGps !== 'false',
+        requireGps:
+          map.requireGeofence !== false &&
+          map.requireGeofence !== 'false' &&
+          map.requireGps !== false &&
+          map.requireGps !== 'false',
+        sessionHours: Number(map.sessionHours ?? 12),
+        biometricRetentionDays: Number(map.biometricRetentionDays ?? 365),
+        mallName: map.mallName || 'Kisan Mall',
       },
     });
   })
