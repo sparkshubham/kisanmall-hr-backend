@@ -75,23 +75,56 @@ export function resolveDatabaseUrl() {
   return resolved;
 }
 
-export function resolveDirectDatabaseUrl() {
-  return (
-    firstUrl([
-      process.env.DIRECT_URL,
-      process.env.POSTGRES_URL_NON_POOLING,
-      process.env.DATABASE_URL,
-      process.env.POSTGRES_URL,
-      buildFromParts(),
-    ]) || 'postgresql://postgres:postgres@localhost:5432/kisan_hr'
+/** Session pooler (port 5432) — use for prisma migrate on Vercel (IPv4). */
+export function toSupabaseSessionPoolerUrl(url, region = supabaseRegion()) {
+  const raw = stripQuotes(url);
+  if (!raw) return raw;
+  if (raw.includes('pooler.supabase.com') && raw.includes(':5432') && !raw.includes('pgbouncer=true')) {
+    return raw;
+  }
+
+  const match = raw.match(
+    /^postgresql:\/\/([^:]+):([^@]+)@(?:db\.([^.]+)\.supabase\.co|aws-0-[^.]+\.pooler\.supabase\.com)(?::\d+)?\/([^?]*)(.*)$/i
   );
+  if (!match) return raw;
+
+  const [, user, password, projectRefFromHost, database, query = ''] = match;
+  const projectRef =
+    projectRefFromHost ||
+    (user.includes('.') ? user.split('.').pop() : null) ||
+    'unknown';
+  const userName = user.includes('.') ? user : `postgres.${projectRef}`;
+  const params = new URLSearchParams(query.startsWith('?') ? query.slice(1) : query);
+  params.delete('pgbouncer');
+  params.delete('connection_limit');
+  params.delete('pool_timeout');
+  if (!params.has('sslmode')) params.set('sslmode', 'require');
+
+  return `postgresql://${userName}:${password}@aws-0-${region}.pooler.supabase.com:5432/${database || 'postgres'}?${params.toString()}`;
+}
+
+export function resolveDirectDatabaseUrl() {
+  const resolved = firstUrl([
+    process.env.DIRECT_URL,
+    process.env.POSTGRES_URL_NON_POOLING,
+    process.env.DATABASE_URL,
+    process.env.POSTGRES_URL,
+    buildFromParts(),
+  ]);
+
+  if (!resolved) {
+    return 'postgresql://postgres:postgres@localhost:5432/kisan_hr';
+  }
+
+  if (process.env.VERCEL) {
+    return toSupabaseSessionPoolerUrl(resolved);
+  }
+  return resolved;
 }
 
 export function ensureDatabaseUrlEnv() {
   process.env.DATABASE_URL = resolveDatabaseUrl();
-  if (!process.env.DIRECT_URL) {
-    process.env.DIRECT_URL = resolveDirectDatabaseUrl();
-  }
+  process.env.DIRECT_URL = resolveDirectDatabaseUrl();
 }
 
 export function databaseHostHint(url = process.env.DATABASE_URL) {
