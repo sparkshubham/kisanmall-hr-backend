@@ -2,6 +2,7 @@
 
 Structure matches stock-verify / `test-backend`:
 
+
 ```text
 server/
   api/index.js          # Vercel serverless entry
