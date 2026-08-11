@@ -70,12 +70,13 @@ export async function generatePayroll(year, month, extrasByEmployee = {}) {
   const results = [];
   for (const employee of employees) {
     const calc = await calculateEmployeePayroll(employee, year, month, extrasByEmployee[employee.id] || {});
+    const { weekOffs: _weekOffs, ...payrollData } = calc;
     const row = await prisma.payroll.upsert({
       where: {
         employeeId_month_year: { employeeId: employee.id, month, year },
       },
-      update: { ...calc, status: 'GENERATED' },
-      create: { ...calc, status: 'GENERATED' },
+      update: { ...payrollData, status: 'GENERATED' },
+      create: { ...payrollData, status: 'GENERATED' },
     });
     results.push(row);
   }

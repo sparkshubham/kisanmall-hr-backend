@@ -297,25 +297,62 @@ router.delete(
   requireRole(...HR_ROLES),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
-    const prev = await prisma.employee.findUnique({ where: { id } });
+    const hard = req.query.hard === '1' || req.query.hard === 'true' || req.body?.hard === true;
+    const prev = await prisma.employee.findUnique({ where: { id }, include: { user: true } });
     if (!prev) return fail(res, 'Employee not found', 404);
 
-    const employee = await prisma.employee.update({
-      where: { id },
-      data: { status: 'INACTIVE' },
-      include: employeeInclude,
+    if (!hard) {
+      const employee = await prisma.employee.update({
+        where: { id },
+        data: { status: 'INACTIVE' },
+        include: employeeInclude,
+      });
+      await prisma.user.update({
+        where: { id: prev.userId },
+        data: { isActive: false },
+      });
+      await writeAudit(req, {
+        action: 'EMPLOYEE_DEACTIVATED',
+        entity: 'Employee',
+        entityId: id,
+        oldData: { status: prev.status },
+      });
+      return ok(res, employee);
+    }
+
+    // Hard delete — remove related rows then employee + login user
+    await prisma.$transaction(async (tx) => {
+      await tx.employee.updateMany({
+        where: { reportingManagerId: id },
+        data: { reportingManagerId: null },
+      });
+      const attendanceIds = (
+        await tx.attendance.findMany({ where: { employeeId: id }, select: { id: true } })
+      ).map((a) => a.id);
+      if (attendanceIds.length) {
+        await tx.attendanceLog.deleteMany({ where: { attendanceId: { in: attendanceIds } } });
+      }
+      await tx.attendanceCorrection.deleteMany({ where: { employeeId: id } });
+      await tx.attendance.deleteMany({ where: { employeeId: id } });
+      await tx.roster.deleteMany({ where: { employeeId: id } });
+      await tx.leaveRequest.deleteMany({ where: { employeeId: id } });
+      await tx.leaveBalance.deleteMany({ where: { employeeId: id } });
+      await tx.taskComment.deleteMany({ where: { task: { employeeId: id } } });
+      await tx.task.deleteMany({ where: { employeeId: id } });
+      await tx.payroll.deleteMany({ where: { employeeId: id } });
+      await tx.employeeDocument.deleteMany({ where: { employeeId: id } });
+      await tx.faceRegistration.deleteMany({ where: { employeeId: id } });
+      await tx.employee.delete({ where: { id } });
+      await tx.user.delete({ where: { id: prev.userId } });
     });
-    await prisma.user.update({
-      where: { id: prev.userId },
-      data: { isActive: false },
-    });
+
     await writeAudit(req, {
-      action: 'EMPLOYEE_DEACTIVATED',
+      action: 'EMPLOYEE_DELETED',
       entity: 'Employee',
       entityId: id,
-      oldData: { status: prev.status },
+      oldData: { employeeCode: prev.employeeCode, mobile: prev.mobile, name: `${prev.firstName} ${prev.lastName}` },
     });
-    return ok(res, employee);
+    return ok(res, { id, deleted: true });
   })
 );
 

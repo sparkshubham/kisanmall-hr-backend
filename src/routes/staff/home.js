@@ -15,7 +15,7 @@ router.get(
     const date = parseDateOnly(todayDateString());
     const { shift, weekOff } = await resolveShiftForDate(employee, date);
 
-    const [today, balances, tasks, notifications, pendingCorrections] = await Promise.all([
+    const [today, balances, tasks, notifications, pendingCorrections, requireGeofence] = await Promise.all([
       prisma.attendance.findUnique({
         where: { employeeId_date: { employeeId: employee.id, date } },
       }),
@@ -36,8 +36,10 @@ router.get(
       prisma.attendanceCorrection.count({
         where: { employeeId: employee.id, status: 'PENDING' },
       }),
+      prisma.systemSetting.findUnique({ where: { key: 'requireGeofence' } }),
     ]);
 
+    const loc = employee.location;
     res.json({
       employee: {
         id: employee.id,
@@ -47,7 +49,7 @@ router.get(
         photoUrl: employee.photoUrl,
         department: employee.department,
         designation: employee.designation,
-        location: employee.location,
+        location: loc,
         faceRegistered: Boolean(employee.face && employee.face.status === 'ACTIVE'),
       },
       shift,
@@ -60,6 +62,14 @@ router.get(
       tasks,
       notifications,
       pendingCorrections,
+      geofence: {
+        required: requireGeofence?.value !== false && requireGeofence?.value !== 'false',
+        locationId: loc?.id || null,
+        name: loc?.name || 'Kisan Mall',
+        latitude: loc?.latitude != null ? Number(loc.latitude) : null,
+        longitude: loc?.longitude != null ? Number(loc.longitude) : null,
+        radiusM: loc?.radiusM ?? 150,
+      },
     });
   })
 );

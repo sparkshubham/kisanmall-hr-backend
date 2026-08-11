@@ -66,6 +66,12 @@ function crud(model, label, extra = {}) {
     requireRole(...HR_ROLES),
     asyncHandler(async (req, res) => {
       const id = Number(req.params.id);
+      const hard = req.query.hard === '1' || req.query.hard === 'true';
+      if (hard) {
+        await prisma[model].delete({ where: { id } });
+        await writeAudit(req, { action: `${label.toUpperCase()}_DELETED`, entity: label, entityId: id });
+        return ok(res, { id, deleted: true });
+      }
       await prisma[model].update({ where: { id }, data: { isActive: false } });
       await writeAudit(req, { action: `${label.toUpperCase()}_DEACTIVATED`, entity: label, entityId: id });
       return ok(res, { id, deactivated: true });

@@ -7,6 +7,7 @@ import {
   todayDateString,
   weekdayIndex,
 } from '../utils/helpers.js';
+import { assertInsideGeofence, resolveAttendanceLocation } from '../utils/geo.js';
 
 export async function getSetting(key, fallback) {
   const row = await prisma.systemSetting.findUnique({ where: { key } });
@@ -87,6 +88,8 @@ export async function markAttendance({
   ipAddress,
   deviceId,
   locationId,
+  latitude,
+  longitude,
 }) {
   const dateKey = todayDateString();
   const date = parseDateOnly(dateKey);
@@ -97,6 +100,20 @@ export async function markAttendance({
     err.status = 400;
     throw err;
   }
+
+  const geoDisabled =
+    process.env.GEOFENCE_DISABLED === '1' || process.env.GEOFENCE_DISABLED === 'true';
+  const requireGeofenceSetting = await getSetting('requireGeofence', true);
+  const requireGeofence =
+    !geoDisabled && requireGeofenceSetting !== false && requireGeofenceSetting !== 'false';
+
+  const storeLocation = await resolveAttendanceLocation(prisma, employee);
+  const geo = assertInsideGeofence({
+    latitude,
+    longitude,
+    location: storeLocation,
+    required: requireGeofence,
+  });
 
   const approvedLeave = await prisma.leaveRequest.findFirst({
     where: {
@@ -123,6 +140,15 @@ export async function markAttendance({
     where: { employeeId_date: { employeeId: employee.id, date } },
   });
 
+  const resolvedLocationId = locationId || storeLocation?.id || employee.locationId || null;
+  const geoMeta = {
+    latitude: latitude != null ? Number(latitude) : null,
+    longitude: longitude != null ? Number(longitude) : null,
+    distanceM: geo.distanceM ?? null,
+    radiusM: geo.radiusM ?? storeLocation?.radiusM ?? null,
+    locationName: geo.locationName || storeLocation?.name || null,
+  };
+
   if (kind === 'check-in') {
     if (existing?.checkIn) {
       const err = new Error(
@@ -143,7 +169,7 @@ export async function markAttendance({
       update: {
         checkIn: now,
         shiftId: shift?.id || employee.shiftId || null,
-        locationId: locationId || employee.locationId || null,
+        locationId: resolvedLocationId,
         lateMinutes: metrics.lateMinutes,
         status: metrics.lateMinutes > 0 ? 'LATE' : 'WORKING',
         faceVerified,
@@ -156,7 +182,7 @@ export async function markAttendance({
         date,
         checkIn: now,
         shiftId: shift?.id || employee.shiftId || null,
-        locationId: locationId || employee.locationId || null,
+        locationId: resolvedLocationId,
         lateMinutes: metrics.lateMinutes,
         status: metrics.lateMinutes > 0 ? 'LATE' : 'WORKING',
         faceVerified,
@@ -173,11 +199,11 @@ export async function markAttendance({
         ipAddress,
         deviceId,
         faceVerified,
-        meta: { confidence: faceConfidence, lateMinutes: metrics.lateMinutes },
+        meta: { confidence: faceConfidence, lateMinutes: metrics.lateMinutes, geo: geoMeta },
       },
     });
 
-    return { attendance: row, action: 'CHECK_IN', metrics };
+    return { attendance: row, action: 'CHECK_IN', metrics, geo: geoMeta };
   }
 
   if (!existing?.checkIn) {
@@ -211,6 +237,7 @@ export async function markAttendance({
       faceConfidence: faceConfidence ?? existing.faceConfidence,
       ipAddress,
       deviceId,
+      locationId: resolvedLocationId || existing.locationId,
     },
   });
 
@@ -221,11 +248,11 @@ export async function markAttendance({
       ipAddress,
       deviceId,
       faceVerified,
-      meta: { confidence: faceConfidence },
+      meta: { confidence: faceConfidence, workingMinutes: metrics.workingMinutes, geo: geoMeta },
     },
   });
 
-  return { attendance: row, action: 'CHECK_OUT', metrics };
+  return { attendance: row, action: 'CHECK_OUT', metrics, geo: geoMeta };
 }
 
 export function displayStatus(row) {

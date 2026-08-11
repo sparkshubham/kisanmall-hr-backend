@@ -59,6 +59,12 @@ router.delete(
   requireRole(...HR_ROLES),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
+    const hard = req.query.hard === '1' || req.query.hard === 'true';
+    if (hard) {
+      await prisma.leaveType.delete({ where: { id } });
+      await writeAudit(req, { action: 'LEAVE_TYPE_DELETED', entity: 'LeaveType', entityId: id });
+      return ok(res, { id, deleted: true });
+    }
     await prisma.leaveType.update({ where: { id }, data: { isActive: false } });
     await writeAudit(req, { action: 'LEAVE_TYPE_DEACTIVATED', entity: 'LeaveType', entityId: id });
     return ok(res, { id, deactivated: true });

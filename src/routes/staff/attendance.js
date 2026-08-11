@@ -41,12 +41,14 @@ router.post(
       ipAddress: clientIp(req),
       deviceId: req.body.deviceId || req.headers['user-agent'] || null,
       locationId: req.body.locationId,
+      latitude: req.body.latitude,
+      longitude: req.body.longitude,
     });
     void writeAudit(req, {
       action: 'ATTENDANCE_MARKED',
       entity: 'Attendance',
       entityId: result.attendance.id,
-      newData: { action: result.action },
+      newData: { action: result.action, geo: result.geo },
     });
     return ok(res, {
       ...result,
@@ -77,12 +79,14 @@ router.post(
       faceConfidence: match.confidence,
       ipAddress: clientIp(req),
       deviceId: req.body.deviceId || req.headers['user-agent'] || null,
+      latitude: req.body.latitude,
+      longitude: req.body.longitude,
     });
     void writeAudit(req, {
       action: 'ATTENDANCE_MARKED',
       entity: 'Attendance',
       entityId: result.attendance.id,
-      newData: { action: result.action },
+      newData: { action: result.action, geo: result.geo },
     });
     return ok(res, {
       ...result,
