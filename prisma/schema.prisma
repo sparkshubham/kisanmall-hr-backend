@@ -1,0 +1,567 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["hr"]
+}
+
+enum Role {
+  SUPER_ADMIN
+  HR_ADMIN
+  MANAGER
+  STAFF
+  @@schema("hr")
+}
+
+enum EmployeeType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  @@schema("hr")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  RESIGNED
+  @@schema("hr")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  @@schema("hr")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  LEAVE
+  HOLIDAY
+  WEEK_OFF
+  ON_DUTY
+  WORKING
+  @@schema("hr")
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  @@schema("hr")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  @@schema("hr")
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  @@schema("hr")
+}
+
+enum SalaryType {
+  MONTHLY
+  WEEKLY
+  DAILY
+  @@schema("hr")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  @@schema("hr")
+}
+
+enum DocumentType {
+  AADHAAR
+  JOINING
+  AGREEMENT
+  BANK
+  OTHER
+  @@schema("hr")
+}
+
+enum FaceStatus {
+  ACTIVE
+  REVOKED
+  @@schema("hr")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  mobile       String   @unique
+  email        String?  @unique
+  passwordHash String
+  role         Role     @default(STAFF)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employee              Employee?
+  auditLogs             AuditLog[]
+  notifications         Notification[]        @relation("UserNotifications")
+  sentNotifications     Notification[]        @relation("NotificationActor")
+  registeredFaces       FaceRegistration[]    @relation("FaceRegistrar")
+  approvedLeaves        LeaveRequest[]        @relation("LeaveApprover")
+  assignedTasks         Task[]                @relation("TaskAssigner")
+  approvedCorrections   AttendanceCorrection[] @relation("CorrectionApprover")
+  createdDocuments      EmployeeDocument[]    @relation("DocumentUploader")
+
+  @@index([role, isActive])
+  @@map("users")
+  @@schema("hr")
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String?  @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employees Employee[]
+  tasks     Task[]
+
+  @@map("departments")
+  @@schema("hr")
+}
+
+model Designation {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employees Employee[]
+
+  @@map("designations")
+  @@schema("hr")
+}
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String?
+  address   String?
+  latitude  Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
+  radiusM   Int      @default(150)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employees  Employee[]
+  attendance Attendance[]
+  tasks      Task[]
+
+  @@index([isActive])
+  @@map("locations")
+  @@schema("hr")
+}
+
+model Shift {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  code          String?
+  startTime     String
+  endTime       String
+  graceMinutes  Int      @default(10)
+  breakMinutes  Int      @default(60)
+  overtimeAfter Int      @default(0)
+  workingDays   Json     @default("[1,2,3,4,5,6]")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  employees  Employee[]
+  attendance Attendance[]
+  rosters    Roster[]
+
+  @@map("shifts")
+  @@schema("hr")
+}
+
+model Employee {
+  id                 Int            @id @default(autoincrement())
+  employeeCode       String         @unique
+  userId             Int            @unique
+  firstName          String
+  lastName           String
+  mobile             String         @unique
+  email              String?
+  dateOfBirth        DateTime?
+  gender             Gender?
+  address            String?
+  emergencyContact   String?
+  photoUrl           String?
+  joiningDate        DateTime       @default(now())
+  departmentId       Int?
+  designationId      Int?
+  locationId         Int?
+  reportingManagerId Int?
+  shiftId            Int?
+  employeeType       EmployeeType   @default(FULL_TIME)
+  status             EmployeeStatus @default(ACTIVE)
+  basicSalary        Decimal        @default(0) @db.Decimal(12, 2)
+  allowances         Decimal        @default(0) @db.Decimal(12, 2)
+  deductions         Decimal        @default(0) @db.Decimal(12, 2)
+  overtimeRate       Decimal        @default(0) @db.Decimal(12, 2)
+  salaryType         SalaryType     @default(MONTHLY)
+  bankName           String?
+  bankAccount        String?
+  bankIfsc           String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department       Department?       @relation(fields: [departmentId], references: [id])
+  designation      Designation?      @relation(fields: [designationId], references: [id])
+  location         Location?         @relation(fields: [locationId], references: [id])
+  shift            Shift?            @relation(fields: [shiftId], references: [id])
+  reportingManager Employee?         @relation("EmployeeManager", fields: [reportingManagerId], references: [id])
+  reportees        Employee[]        @relation("EmployeeManager")
+  face             FaceRegistration?
+  attendance       Attendance[]
+  corrections      AttendanceCorrection[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+  tasks            Task[]
+  documents        EmployeeDocument[]
+  rosters          Roster[]
+  payrolls         Payroll[]
+
+  @@index([departmentId, status])
+  @@index([locationId, status])
+  @@index([shiftId])
+  @@index([reportingManagerId])
+  @@map("employees")
+  @@schema("hr")
+}
+
+model FaceRegistration {
+  id           Int        @id @default(autoincrement())
+  employeeId   Int        @unique
+  embedding    Json
+  modelVersion String     @default("face-api-ssd-128")
+  status       FaceStatus @default(ACTIVE)
+  registeredById Int?
+  registeredAt DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  registeredBy User?    @relation("FaceRegistrar", fields: [registeredById], references: [id])
+
+  @@map("face_registrations")
+  @@schema("hr")
+}
+
+model Attendance {
+  id              Int              @id @default(autoincrement())
+  employeeId      Int
+  locationId      Int?
+  shiftId         Int?
+  date            DateTime         @db.Date
+  checkIn         DateTime?
+  checkOut        DateTime?
+  workingMinutes  Int              @default(0)
+  breakMinutes    Int              @default(0)
+  overtimeMinutes Int              @default(0)
+  lateMinutes     Int              @default(0)
+  earlyMinutes    Int              @default(0)
+  status          AttendanceStatus @default(PRESENT)
+  faceVerified    Boolean          @default(false)
+  faceConfidence  Decimal?         @db.Decimal(6, 4)
+  deviceId        String?
+  ipAddress       String?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  employee Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  location Location? @relation(fields: [locationId], references: [id])
+  shift    Shift?    @relation(fields: [shiftId], references: [id])
+  logs     AttendanceLog[]
+
+  @@unique([employeeId, date])
+  @@index([date, status])
+  @@index([locationId, date])
+  @@map("attendance")
+  @@schema("hr")
+}
+
+model AttendanceLog {
+  id           Int      @id @default(autoincrement())
+  attendanceId Int
+  action       String
+  at           DateTime @default(now())
+  ipAddress    String?
+  deviceId     String?
+  faceVerified Boolean  @default(false)
+  meta         Json?
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@index([attendanceId, at])
+  @@map("attendance_logs")
+  @@schema("hr")
+}
+
+model AttendanceCorrection {
+  id               Int            @id @default(autoincrement())
+  employeeId       Int
+  date             DateTime       @db.Date
+  issue            String
+  requestedCheckIn DateTime?
+  requestedCheckOut DateTime?
+  reason           String
+  status           ApprovalStatus @default(PENDING)
+  rejectionReason  String?
+  reviewedById     Int?
+  reviewedAt       DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("CorrectionApprover", fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
+  @@map("attendance_corrections")
+  @@schema("hr")
+}
+
+model Roster {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  shiftId    Int?
+  date       DateTime @db.Date
+  isWeekOff  Boolean  @default(false)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift?   @relation(fields: [shiftId], references: [id])
+
+  @@unique([employeeId, date])
+  @@index([date])
+  @@map("rosters")
+  @@schema("hr")
+}
+
+model LeaveType {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  code         String   @unique
+  annualQuota  Int      @default(0)
+  isPaid       Boolean  @default(true)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  balances LeaveBalance[]
+  requests LeaveRequest[]
+
+  @@map("leave_types")
+  @@schema("hr")
+}
+
+model LeaveBalance {
+  id          Int @id @default(autoincrement())
+  employeeId  Int
+  leaveTypeId Int
+  year        Int
+  entitled    Int @default(0)
+  used        Int @default(0)
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@map("leave_balances")
+  @@schema("hr")
+}
+
+model LeaveRequest {
+  id              Int                @id @default(autoincrement())
+  employeeId      Int
+  leaveTypeId     Int
+  fromDate        DateTime           @db.Date
+  toDate          DateTime           @db.Date
+  days            Int
+  reason          String
+  attachmentUrl   String?
+  status          LeaveRequestStatus @default(PENDING)
+  rejectionReason String?
+  reviewedById    Int?
+  reviewedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType  LeaveType @relation(fields: [leaveTypeId], references: [id])
+  reviewedBy User?     @relation("LeaveApprover", fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([employeeId, fromDate])
+  @@map("leave_requests")
+  @@schema("hr")
+}
+
+model Task {
+  id           Int          @id @default(autoincrement())
+  title        String
+  description  String?
+  employeeId   Int
+  departmentId Int?
+  locationId   Int?
+  priority     TaskPriority @default(MEDIUM)
+  status       TaskStatus   @default(PENDING)
+  dueDate      DateTime?
+  assignedById Int?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id])
+  location   Location?   @relation(fields: [locationId], references: [id])
+  assignedBy User?       @relation("TaskAssigner", fields: [assignedById], references: [id])
+  comments   TaskComment[]
+
+  @@index([employeeId, status])
+  @@index([status, dueDate])
+  @@map("tasks")
+  @@schema("hr")
+}
+
+model TaskComment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  userId    Int
+  body      String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_comments")
+  @@schema("hr")
+}
+
+model Payroll {
+  id              Int      @id @default(autoincrement())
+  employeeId      Int
+  month           Int
+  year            Int
+  workingDays     Int      @default(0)
+  presentDays     Decimal  @default(0) @db.Decimal(6, 2)
+  absentDays      Int      @default(0)
+  paidLeaveDays   Int      @default(0)
+  unpaidLeaveDays Int      @default(0)
+  lateDays        Int      @default(0)
+  overtimeHours   Decimal  @default(0) @db.Decimal(8, 2)
+  basicSalary     Decimal  @default(0) @db.Decimal(12, 2)
+  allowances      Decimal  @default(0) @db.Decimal(12, 2)
+  overtimePay     Decimal  @default(0) @db.Decimal(12, 2)
+  bonus           Decimal  @default(0) @db.Decimal(12, 2)
+  lateDeduction   Decimal  @default(0) @db.Decimal(12, 2)
+  leaveDeduction  Decimal  @default(0) @db.Decimal(12, 2)
+  otherDeduction  Decimal  @default(0) @db.Decimal(12, 2)
+  netSalary       Decimal  @default(0) @db.Decimal(12, 2)
+  status          String   @default("DRAFT")
+  generatedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, month, year])
+  @@index([year, month])
+  @@map("payroll")
+  @@schema("hr")
+}
+
+model EmployeeDocument {
+  id           Int          @id @default(autoincrement())
+  employeeId   Int
+  type         DocumentType @default(OTHER)
+  title        String
+  fileUrl      String
+  uploadedById Int?
+  createdAt    DateTime     @default(now())
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation("DocumentUploader", fields: [uploadedById], references: [id])
+
+  @@index([employeeId])
+  @@map("employee_documents")
+  @@schema("hr")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  body      String
+  type      String
+  isRead    Boolean  @default(false)
+  meta      Json?
+  actorId   Int?
+  createdAt DateTime @default(now())
+
+  user  User  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+  @@schema("hr")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  entity    String
+  entityId  Int?
+  ipAddress String?
+  oldData   Json?
+  newData   Json?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+  @@schema("hr")
+}
+
+model SystemSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+  @@schema("hr")
+}
