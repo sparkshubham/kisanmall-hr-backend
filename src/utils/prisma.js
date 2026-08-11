@@ -13,9 +13,8 @@ function createClient() {
   });
 }
 
+// Always cache on globalThis so warm Vercel lambdas reuse the connection (same as local).
 const prisma = globalForPrisma.__hrPrisma ?? createClient();
-
-// Reuse across warm serverless invocations (Vercel) and local hot-reload
 globalForPrisma.__hrPrisma = prisma;
 
 export default prisma;

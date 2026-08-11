@@ -31,6 +31,18 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || 'kisan-mall-hr-dev-secret',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 
+  supabaseRegion: process.env.SUPABASE_REGION || 'ap-southeast-1',
+
+  postgres: {
+    url: process.env.POSTGRES_URL || '',
+    prismaUrl: process.env.POSTGRES_PRISMA_URL || '',
+    urlNonPooling: process.env.POSTGRES_URL_NON_POOLING || '',
+    user: process.env.POSTGRES_USER || '',
+    host: process.env.POSTGRES_HOST || '',
+    password: process.env.POSTGRES_PASSWORD || '',
+    database: process.env.POSTGRES_DATABASE || 'postgres',
+  },
+
   clientOrigins: [
     ...new Set([
       ...defaultOrigins,

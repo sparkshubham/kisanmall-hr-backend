@@ -1,12 +1,17 @@
 # Vercel → kisanmall-hr-backend → Settings → Environment Variables
-# Production + Preview + Development, then Redeploy.
+# Add for Production + Preview + Development, then Redeploy.
 #
-# Direct host db.hmzlplfvaphyhgmmiryl.supabase.co:5432 is IPv6-only.
-# Vercel cannot reach it. Use this project's real pooler (Singapore):
-# aws-0-ap-southeast-1 — NOT aws-0-ap-south-1 (tenant does not exist there).
+# Do NOT use db.hmzlplfvaphyhgmmiryl.supabase.co:5432 (IPv6-only — slow/fail on Vercel).
+# Do NOT use aws-0-ap-south-1 (tenant missing). Use Singapore pooler only.
 
-DATABASE_URL=postgresql://postgres.hmzlplfvaphyhgmmiryl:kisanmall123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true&connection_limit=1
+DATABASE_URL=postgresql://postgres.hmzlplfvaphyhgmmiryl:kisanmall123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true&connection_limit=1&pool_timeout=20&connect_timeout=15
 DIRECT_URL=postgresql://postgres.hmzlplfvaphyhgmmiryl:kisanmall123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
 JWT_SECRET=kisan-mall-hr-dev-secret-change-in-production
 CLIENT_URL=https://kisanmall-hr.vercel.app
 SUPABASE_REGION=ap-southeast-1
+
+# Optional (same keys ecommerce backend uses)
+POSTGRES_USER=postgres.hmzlplfvaphyhgmmiryl
+POSTGRES_PASSWORD=kisanmall123
+POSTGRES_HOST=aws-0-ap-southeast-1.pooler.supabase.com
+POSTGRES_DATABASE=postgres
