@@ -44,7 +44,7 @@ router.get(
           include: {
             department: true,
             shift: true,
-            face: { select: { id: true, photoUrl: true, registeredAt: true } },
+            face: { select: { id: true, registeredAt: true, status: true } },
           },
         }),
       ]);

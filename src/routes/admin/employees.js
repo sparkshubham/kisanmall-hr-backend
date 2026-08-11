@@ -32,7 +32,7 @@ const employeeInclude = {
   designation: true,
   location: true,
   shift: true,
-  face: { select: { id: true, photoUrl: true, registeredAt: true, status: true } },
+  face: { select: { id: true, registeredAt: true, status: true } },
   reportingManager: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
 };
 

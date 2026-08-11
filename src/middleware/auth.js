@@ -98,7 +98,7 @@ export async function attachEmployee(req, res, next) {
         designation: true,
         location: true,
         shift: true,
-        face: { select: { id: true, employeeId: true, photoUrl: true, status: true, registeredAt: true, updatedAt: true } },
+        face: { select: { id: true, employeeId: true, status: true, registeredAt: true, updatedAt: true } },
       },
     });
     if (!employee) return fail(res, 'Employee profile not found', 404);
