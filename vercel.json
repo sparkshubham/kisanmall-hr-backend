@@ -1,7 +1,6 @@
 {
   "version": 2,
   "regions": ["bom1"],
-  "buildCommand": "npx prisma generate && node scripts/migrate.js",
   "functions": {
     "api/index.js": {
       "maxDuration": 60
