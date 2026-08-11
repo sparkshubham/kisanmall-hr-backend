@@ -1,14 +1,12 @@
 # Vercel → kisanmall-hr-backend → Settings → Environment Variables
 # Production + Preview + Development, then Redeploy.
-# Paste the EXACT URI from Supabase → Connect. Do not invent a pooler username.
+#
+# Direct host db.hmzlplfvaphyhgmmiryl.supabase.co:5432 is IPv6-only.
+# Vercel cannot reach it. Use this project's real pooler (Singapore):
+# aws-0-ap-southeast-1 — NOT aws-0-ap-south-1 (tenant does not exist there).
 
-DATABASE_URL=postgresql://postgres:kisanmall123@db.hmzlplfvaphyhgmmiryl.supabase.co:5432/postgres?sslmode=require
-DIRECT_URL=postgresql://postgres:kisanmall123@db.hmzlplfvaphyhgmmiryl.supabase.co:5432/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.hmzlplfvaphyhgmmiryl:kisanmall123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true&connection_limit=1
+DIRECT_URL=postgresql://postgres.hmzlplfvaphyhgmmiryl:kisanmall123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
 JWT_SECRET=kisan-mall-hr-dev-secret-change-in-production
 CLIENT_URL=https://kisanmall-hr.vercel.app
-SUPABASE_REGION=ap-south-1
-
-# If login still fails with ENOTFOUND tenant/user:
-# you pasted a pooler URI like postgres.hmzlplfvaphyhgmmiryl@aws-0-ap-south-1.pooler.supabase.com
-# That tenant does not exist. Use the direct URI above, or copy Session pooler
-# from the Supabase dashboard (do not guess the host).
+SUPABASE_REGION=ap-southeast-1
