@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
@@ -16,8 +15,25 @@ function isOriginAllowed(origin) {
   if (!origin) return true;
   if (env.clientOrigins.includes('*')) return true;
   if (env.clientOrigins.includes(origin)) return true;
-  if (/^https:\/\/kisanmall-hr[a-z0-9-]*\.vercel\.app$/i.test(origin)) return true;
+  if (/^https:\/\/kisanmall-hr(?!-backend)[a-z0-9-]*\.vercel\.app$/i.test(origin)) return true;
+  if (/^https:\/\/localhost(?::\d+)?$/i.test(origin)) return true;
+  if (/^http:\/\/localhost(?::\d+)?$/i.test(origin)) return true;
   return false;
+}
+
+function applyCorsHeaders(req, res) {
+  const origin = req.headers.origin;
+  if (!isOriginAllowed(origin)) return false;
+  res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] || 'Authorization,Content-Type,X-Requested-With'
+  );
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('Vary', 'Origin');
+  return true;
 }
 
 app.use(
@@ -27,33 +43,13 @@ app.use(
   })
 );
 
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  if (isOriginAllowed(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      req.headers['access-control-request-headers'] || 'Authorization,Content-Type'
-    );
-    res.setHeader('Access-Control-Max-Age', '86400');
+app.use((req, res, next) => {
+  applyCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
   }
-  return res.status(204).end();
+  next();
 });
-
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (isOriginAllowed(origin)) return callback(null, origin || true);
-      return callback(null, false);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
-    optionsSuccessStatus: 204,
-  })
-);
 
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));

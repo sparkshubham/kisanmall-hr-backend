@@ -12,6 +12,7 @@ ensureDatabaseUrlEnv();
 
 const defaultOrigins = [
   'https://kisanmall-hr.vercel.app',
+  'https://kisanmall-hr-backend.vercel.app',
   'http://localhost:5173',
   'https://localhost:5173',
   'http://localhost:5174',
