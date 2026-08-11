@@ -1,13 +1,7 @@
 /**
- * Resolve Postgres / Supabase connection strings from env vars you set
- * (Vercel dashboard or local .env). No host/password is hardcoded.
- *
- * Preferred on Vercel:
- *   DATABASE_URL  = Transaction pooler (*.pooler.supabase.com:6543)
- *   DIRECT_URL    = Direct (db.*.supabase.co:5432) — optional, for migrate
- *
- * If you paste the direct URL as DATABASE_URL, it is rewritten to the
- * IPv4 pooler automatically on Vercel (direct host is IPv6-only).
+ * Use the exact Postgres / Supabase URIs from env.
+ * Do not rewrite db.*.supabase.co → a guessed pooler tenant.
+ * This HR project’s pooler user postgres.hmzlplfvaphyhgmmiryl does not exist.
  */
 
 function stripQuotes(value = '') {
@@ -27,29 +21,12 @@ function firstUrl(candidates) {
   return candidates.map(stripQuotes).find(Boolean) || null;
 }
 
-function supabaseRegion() {
-  return stripQuotes(process.env.SUPABASE_REGION) || 'ap-south-1';
-}
-
-/** Rewrite direct Supabase URL → transaction pooler (IPv4) for serverless. */
-export function toSupabasePoolerUrl(url, region = supabaseRegion()) {
+function withSsl(url) {
   const raw = stripQuotes(url);
-  if (!raw || raw.includes('pooler.supabase.com')) return raw;
-
-  const match = raw.match(
-    /^postgresql:\/\/([^:]+):([^@]+)@db\.([^.]+)\.supabase\.co(?::\d+)?\/([^?]*)(.*)$/i
-  );
-  if (!match) return raw;
-
-  const [, user, password, projectRef, database, query = ''] = match;
-  const userName = user.includes('.') ? user : `postgres.${projectRef}`;
-  const params = new URLSearchParams(query.startsWith('?') ? query.slice(1) : query);
-  params.set('pgbouncer', 'true');
-  if (!params.has('connection_limit')) params.set('connection_limit', '5');
-  if (!params.has('pool_timeout')) params.set('pool_timeout', '20');
-  if (!params.has('sslmode')) params.set('sslmode', 'require');
-
-  return `postgresql://${userName}:${password}@aws-0-${region}.pooler.supabase.com:6543/${database || 'postgres'}?${params.toString()}`;
+  if (!raw) return raw;
+  if (!/supabase\.(co|com)/i.test(raw)) return raw;
+  if (/[?&]sslmode=/i.test(raw)) return raw;
+  return raw.includes('?') ? `${raw}&sslmode=require` : `${raw}?sslmode=require`;
 }
 
 export function resolveDatabaseUrl() {
@@ -63,44 +40,13 @@ export function resolveDatabaseUrl() {
   if (!resolved) {
     if (process.env.VERCEL) {
       throw new Error(
-        'Missing DATABASE_URL. Add it in Vercel → Settings → Environment Variables (use the Supabase pooler URI).'
+        'Missing DATABASE_URL. Add the exact URI from Supabase → Project Settings → Database.'
       );
     }
     return 'postgresql://postgres:postgres@localhost:5432/kisan_hr';
   }
 
-  if (process.env.VERCEL) {
-    return toSupabasePoolerUrl(resolved);
-  }
-  return resolved;
-}
-
-/** Session pooler (port 5432) — use for prisma migrate on Vercel (IPv4). */
-export function toSupabaseSessionPoolerUrl(url, region = supabaseRegion()) {
-  const raw = stripQuotes(url);
-  if (!raw) return raw;
-  if (raw.includes('pooler.supabase.com') && raw.includes(':5432') && !raw.includes('pgbouncer=true')) {
-    return raw;
-  }
-
-  const match = raw.match(
-    /^postgresql:\/\/([^:]+):([^@]+)@(?:db\.([^.]+)\.supabase\.co|aws-0-[^.]+\.pooler\.supabase\.com)(?::\d+)?\/([^?]*)(.*)$/i
-  );
-  if (!match) return raw;
-
-  const [, user, password, projectRefFromHost, database, query = ''] = match;
-  const projectRef =
-    projectRefFromHost ||
-    (user.includes('.') ? user.split('.').pop() : null) ||
-    'unknown';
-  const userName = user.includes('.') ? user : `postgres.${projectRef}`;
-  const params = new URLSearchParams(query.startsWith('?') ? query.slice(1) : query);
-  params.delete('pgbouncer');
-  params.delete('connection_limit');
-  params.delete('pool_timeout');
-  if (!params.has('sslmode')) params.set('sslmode', 'require');
-
-  return `postgresql://${userName}:${password}@aws-0-${region}.pooler.supabase.com:5432/${database || 'postgres'}?${params.toString()}`;
+  return withSsl(resolved);
 }
 
 export function resolveDirectDatabaseUrl() {
@@ -112,14 +58,7 @@ export function resolveDirectDatabaseUrl() {
     buildFromParts(),
   ]);
 
-  if (!resolved) {
-    return 'postgresql://postgres:postgres@localhost:5432/kisan_hr';
-  }
-
-  if (process.env.VERCEL) {
-    return toSupabaseSessionPoolerUrl(resolved);
-  }
-  return resolved;
+  return withSsl(resolved || 'postgresql://postgres:postgres@localhost:5432/kisan_hr');
 }
 
 export function ensureDatabaseUrlEnv() {

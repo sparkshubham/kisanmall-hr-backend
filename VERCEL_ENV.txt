@@ -1,18 +1,14 @@
-# Upload these in Vercel → Backend → Settings → Environment Variables
-# Apply to Production, Preview, Development — then Redeploy.
-# Paste YOUR values from Supabase → Project Settings → Database.
+# Vercel → kisanmall-hr-backend → Settings → Environment Variables
+# Production + Preview + Development, then Redeploy.
+# Paste the EXACT URI from Supabase → Connect. Do not invent a pooler username.
 
-DATABASE_URL=
-DIRECT_URL=
-JWT_SECRET=
+DATABASE_URL=postgresql://postgres:kisanmall123@db.hmzlplfvaphyhgmmiryl.supabase.co:5432/postgres?sslmode=require
+DIRECT_URL=postgresql://postgres:kisanmall123@db.hmzlplfvaphyhgmmiryl.supabase.co:5432/postgres?sslmode=require
+JWT_SECRET=kisan-mall-hr-dev-secret-change-in-production
 CLIENT_URL=https://kisanmall-hr.vercel.app
 SUPABASE_REGION=ap-south-1
 
-# DATABASE_URL = Supabase "Transaction pooler" URI (port 6543, host *.pooler.supabase.com)
-# DIRECT_URL   = Session pooler OR direct URI. On Vercel, migrate uses session pooler (port 5432).
-# vercel-build runs: prisma generate && node scripts/migrate.js
-#
-# Example for this HR project:
-# DATABASE_URL=postgresql://postgres.hmzlplfvaphyhgmmiryl:kisanmall123@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5&pool_timeout=20&sslmode=require
-# DIRECT_URL=postgresql://postgres:kisanmall123@db.hmzlplfvaphyhgmmiryl.supabase.co:5432/postgres?schema=public&sslmode=require
-# JWT_SECRET=kisan-mall-hr-dev-secret-change-in-production
+# If login still fails with ENOTFOUND tenant/user:
+# you pasted a pooler URI like postgres.hmzlplfvaphyhgmmiryl@aws-0-ap-south-1.pooler.supabase.com
+# That tenant does not exist. Use the direct URI above, or copy Session pooler
+# from the Supabase dashboard (do not guess the host).
