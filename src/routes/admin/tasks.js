@@ -76,12 +76,25 @@ router.patch(
     ['title', 'description', 'priority', 'status'].forEach((k) => {
       if (req.body[k] !== undefined) data[k] = req.body[k];
     });
+    if (req.body.employeeId !== undefined) data.employeeId = Number(req.body.employeeId);
     if (req.body.dueDate !== undefined) data.dueDate = req.body.dueDate ? parseDateOnly(req.body.dueDate) : null;
     const row = await prisma.task.update({ where: { id }, data, include: { employee: true } });
     if (data.status === 'COMPLETED') {
       await writeAudit(req, { action: 'TASK_COMPLETED', entity: 'Task', entityId: id });
+    } else {
+      await writeAudit(req, { action: 'TASK_UPDATED', entity: 'Task', entityId: id, newData: data });
     }
     return ok(res, row);
+  })
+);
+
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    await prisma.task.delete({ where: { id } });
+    await writeAudit(req, { action: 'TASK_DELETED', entity: 'Task', entityId: id });
+    return ok(res, { id, deleted: true });
   })
 );
 

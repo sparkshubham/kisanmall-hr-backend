@@ -13,15 +13,19 @@ const router = Router();
 router.post(
   '/login',
   asyncHandler(async (req, res) => {
-    const { mobile, email, password, portal } = req.body;
-    if ((!mobile && !email) || !password) {
-      return fail(res, 'Mobile/email and password are required', 400);
+    const { mobile, email, username, password, portal } = req.body;
+    if ((!mobile && !email && !username) || !password) {
+      return fail(res, 'Username/mobile/email and password are required', 400);
     }
 
-    const identifier = String(mobile || email).trim();
+    const identifier = String(mobile || email || username).trim();
     const user = await prisma.user.findFirst({
       where: {
-        OR: [{ mobile: identifier }, { email: identifier }],
+        OR: [
+          { mobile: identifier },
+          { email: identifier },
+          { employee: { employeeCode: { equals: identifier, mode: 'insensitive' } } },
+        ],
       },
       include: {
         employee: {
@@ -31,12 +35,12 @@ router.post(
     });
 
     if (!user || !user.isActive) {
-      return fail(res, 'Invalid mobile or password', 401);
+      return fail(res, 'Invalid username or password', 401);
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
-      return fail(res, 'Invalid mobile or password', 401);
+      return fail(res, 'Invalid username or password', 401);
     }
 
     if (portal === 'admin' && !ADMIN_ROLES.includes(user.role)) {
@@ -53,7 +57,8 @@ router.post(
       mobile: user.mobile,
     });
 
-    await writeAudit(req, {
+    // Don't block login on audit write (extra DB round-trip)
+    void writeAudit(req, {
       action: 'LOGIN',
       entity: 'User',
       entityId: user.id,

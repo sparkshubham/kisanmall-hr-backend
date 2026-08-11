@@ -12,16 +12,18 @@ router.use(authenticate, attachEmployee);
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const rows = await prisma.leaveRequest.findMany({
-      where: { employeeId: req.employee.id },
-      include: { leaveType: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    const balances = await prisma.leaveBalance.findMany({
-      where: { employeeId: req.employee.id, year: new Date().getFullYear() },
-      include: { leaveType: true },
-    });
-    const types = await prisma.leaveType.findMany({ where: { isActive: true } });
+    const [rows, balances, types] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where: { employeeId: req.employee.id },
+        include: { leaveType: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.leaveBalance.findMany({
+        where: { employeeId: req.employee.id, year: new Date().getFullYear() },
+        include: { leaveType: true },
+      }),
+      prisma.leaveType.findMany({ where: { isActive: true } }),
+    ]);
     res.json({
       rows,
       balances: balances.map((b) => ({ ...b, available: Math.max(0, b.entitled - b.used) })),

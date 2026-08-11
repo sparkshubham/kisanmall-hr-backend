@@ -5,7 +5,7 @@ const openApiSpec = {
     title: 'Kisan Mall Staff Management API',
     description:
       'Admin + staff HR APIs.\n\n' +
-      '1. `POST /auth/login` with mobile + password\n' +
+      '1. `POST /auth/login` with mobile, email, or employee code + password\n' +
       '2. Click **Authorize** and paste `Bearer <token>`\n\n' +
       'Admin paths: `/admin/*`. Staff paths: `/staff/*`.',
     version: '1.0.0',
@@ -45,9 +45,11 @@ const openApiSpec = {
       },
       LoginRequest: {
         type: 'object',
-        required: ['mobile', 'password'],
+        required: ['password'],
         properties: {
           mobile: { type: 'string', example: '9999999999' },
+          email: { type: 'string', example: 'admin@kisanmall.in' },
+          username: { type: 'string', example: 'KM001', description: 'Employee code' },
           password: { type: 'string', example: 'admin123' },
           portal: { type: 'string', enum: ['admin', 'staff'] },
         },
@@ -65,7 +67,7 @@ const openApiSpec = {
     '/auth/login': {
       post: {
         tags: ['Auth'],
-        summary: 'Login with mobile and password',
+        summary: 'Login with mobile, email, or employee code + password',
         requestBody: {
           required: true,
           content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginRequest' } } },

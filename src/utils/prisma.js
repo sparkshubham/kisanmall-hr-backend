@@ -15,8 +15,7 @@ function createClient() {
 
 const prisma = globalForPrisma.__hrPrisma ?? createClient();
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.__hrPrisma = prisma;
-}
+// Reuse across warm serverless invocations (Vercel) and local hot-reload
+globalForPrisma.__hrPrisma = prisma;
 
 export default prisma;

@@ -41,7 +41,11 @@ router.get(
         prisma.employee.findMany({
           take: 8,
           orderBy: { createdAt: 'desc' },
-          include: { department: true, shift: true, face: true },
+          include: {
+            department: true,
+            shift: true,
+            face: { select: { id: true, photoUrl: true, registeredAt: true } },
+          },
         }),
       ]);
 
@@ -54,12 +58,32 @@ router.get(
     const unmarked = Math.max(0, totalStaff - attendance.length);
     const absentTotal = absent + unmarked;
 
+    const trendStart = new Date(date);
+    trendStart.setUTCDate(trendStart.getUTCDate() - 6);
+    const [trendRows, locationWise] = await Promise.all([
+      prisma.attendance.findMany({
+        where: { date: { gte: trendStart, lte: date } },
+        select: { date: true, status: true, checkIn: true },
+      }),
+      prisma.location.findMany({
+        where: { isActive: true },
+        include: { _count: { select: { employees: true } } },
+      }),
+    ]);
+
+    const byDay = new Map();
+    for (const row of trendRows) {
+      const key = row.date.toISOString().slice(0, 10);
+      if (!byDay.has(key)) byDay.set(key, []);
+      byDay.get(key).push(row);
+    }
+
     const trend = [];
     for (let i = 6; i >= 0; i -= 1) {
       const d = new Date(date);
       d.setUTCDate(d.getUTCDate() - i);
       const key = d.toISOString().slice(0, 10);
-      const dayRows = await prisma.attendance.findMany({ where: { date: d } });
+      const dayRows = byDay.get(key) || [];
       trend.push({
         date: key,
         label: d.toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'UTC' }),
@@ -68,11 +92,6 @@ router.get(
         leave: dayRows.filter((a) => a.status === 'LEAVE').length,
       });
     }
-
-    const locationWise = await prisma.location.findMany({
-      where: { isActive: true },
-      include: { _count: { select: { employees: true } } },
-    });
 
     const locationStats = locationWise.map((loc) => {
       const rows = attendance.filter((a) => a.locationId === loc.id || a.employee?.locationId === loc.id);

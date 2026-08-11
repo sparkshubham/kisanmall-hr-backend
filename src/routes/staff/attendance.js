@@ -12,12 +12,13 @@ const router = Router();
 router.use(authenticate, attachEmployee);
 
 async function verifyOwnFace(employee, embedding) {
-  if (!employee.face || employee.face.status !== 'ACTIVE') {
+  const face = await prisma.faceRegistration.findUnique({ where: { employeeId: employee.id } });
+  if (!face || face.status !== 'ACTIVE') {
     const err = new Error('Face is not registered. Ask HR to register your face.');
     err.status = 400;
     throw err;
   }
-  const match = bestMatch(embedding, [employee.face]);
+  const match = bestMatch(embedding, [face]);
   if (!match?.matched) {
     const err = new Error('Face verification failed. Please try again.');
     err.status = 401;
@@ -41,7 +42,7 @@ router.post(
       deviceId: req.body.deviceId || req.headers['user-agent'] || null,
       locationId: req.body.locationId,
     });
-    await writeAudit(req, {
+    void writeAudit(req, {
       action: 'ATTENDANCE_MARKED',
       entity: 'Attendance',
       entityId: result.attendance.id,
@@ -77,7 +78,7 @@ router.post(
       ipAddress: clientIp(req),
       deviceId: req.body.deviceId || req.headers['user-agent'] || null,
     });
-    await writeAudit(req, {
+    void writeAudit(req, {
       action: 'ATTENDANCE_MARKED',
       entity: 'Attendance',
       entityId: result.attendance.id,

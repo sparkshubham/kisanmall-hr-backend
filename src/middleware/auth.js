@@ -90,6 +90,7 @@ export function authStaff(req, res, next) {
 
 export async function attachEmployee(req, res, next) {
   try {
+    // Omit face.embedding here — load it only on check-in / register-face routes
     const employee = await prisma.employee.findUnique({
       where: { userId: req.user.id },
       include: {
@@ -97,7 +98,7 @@ export async function attachEmployee(req, res, next) {
         designation: true,
         location: true,
         shift: true,
-        face: true,
+        face: { select: { id: true, employeeId: true, photoUrl: true, status: true, registeredAt: true, updatedAt: true } },
       },
     });
     if (!employee) return fail(res, 'Employee profile not found', 404);

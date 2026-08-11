@@ -77,6 +77,17 @@ router.patch(
   })
 );
 
+router.delete(
+  '/:id',
+  requireRole(...HR_ROLES),
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    await prisma.shift.update({ where: { id }, data: { isActive: false } });
+    await writeAudit(req, { action: 'SHIFT_DEACTIVATED', entity: 'Shift', entityId: id });
+    return ok(res, { id, deactivated: true });
+  })
+);
+
 router.post(
   '/assign',
   requireRole(...HR_ROLES),

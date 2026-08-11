@@ -32,7 +32,7 @@ const employeeInclude = {
   designation: true,
   location: true,
   shift: true,
-  face: true,
+  face: { select: { id: true, photoUrl: true, registeredAt: true, status: true } },
   reportingManager: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
 };
 
@@ -288,6 +288,33 @@ router.patch(
       newData: data,
     });
 
+    return ok(res, employee);
+  })
+);
+
+router.delete(
+  '/:id',
+  requireRole(...HR_ROLES),
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const prev = await prisma.employee.findUnique({ where: { id } });
+    if (!prev) return fail(res, 'Employee not found', 404);
+
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: { status: 'INACTIVE' },
+      include: employeeInclude,
+    });
+    await prisma.user.update({
+      where: { id: prev.userId },
+      data: { isActive: false },
+    });
+    await writeAudit(req, {
+      action: 'EMPLOYEE_DEACTIVATED',
+      entity: 'Employee',
+      entityId: id,
+      oldData: { status: prev.status },
+    });
     return ok(res, employee);
   })
 );

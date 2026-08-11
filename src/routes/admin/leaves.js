@@ -32,7 +32,36 @@ router.post(
         isPaid: isPaid !== false,
       },
     });
+    await writeAudit(req, { action: 'LEAVE_TYPE_CREATED', entity: 'LeaveType', entityId: row.id, newData: row });
     return ok(res, row, 201);
+  })
+);
+
+router.patch(
+  '/types/:id',
+  requireRole(...HR_ROLES),
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const data = {};
+    if (req.body.name !== undefined) data.name = String(req.body.name).trim();
+    if (req.body.code !== undefined) data.code = String(req.body.code).trim().toUpperCase();
+    if (req.body.annualQuota !== undefined) data.annualQuota = Number(req.body.annualQuota);
+    if (req.body.isPaid !== undefined) data.isPaid = Boolean(req.body.isPaid);
+    if (req.body.isActive !== undefined) data.isActive = Boolean(req.body.isActive);
+    const row = await prisma.leaveType.update({ where: { id }, data });
+    await writeAudit(req, { action: 'LEAVE_TYPE_UPDATED', entity: 'LeaveType', entityId: id, newData: data });
+    return ok(res, row);
+  })
+);
+
+router.delete(
+  '/types/:id',
+  requireRole(...HR_ROLES),
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    await prisma.leaveType.update({ where: { id }, data: { isActive: false } });
+    await writeAudit(req, { action: 'LEAVE_TYPE_DEACTIVATED', entity: 'LeaveType', entityId: id });
+    return ok(res, { id, deactivated: true });
   })
 );
 
