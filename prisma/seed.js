@@ -157,6 +157,7 @@ async function main() {
       email: 'admin@kisanmall.in',
       passwordHash: adminHash,
       role: 'SUPER_ADMIN',
+      mustChangePassword: false,
     },
   });
 
@@ -304,6 +305,7 @@ async function main() {
         email: `${code}@kisanmall.in`,
         passwordHash: staffHash,
         role: person.role,
+        mustChangePassword: true,
       },
     });
 

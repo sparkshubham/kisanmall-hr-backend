@@ -122,6 +122,7 @@ router.post(
         email: b.email || null,
         passwordHash: await bcrypt.hash(b.password, 10),
         role,
+        mustChangePassword: true,
       },
     });
 
@@ -266,7 +267,10 @@ router.patch(
     if (b.email !== undefined) userData.email = b.email || null;
     if (b.role) userData.role = b.role;
     if (b.status) userData.isActive = b.status === 'ACTIVE';
-    if (b.password) userData.passwordHash = await bcrypt.hash(b.password, 10);
+    if (b.password) {
+      userData.passwordHash = await bcrypt.hash(b.password, 10);
+      userData.mustChangePassword = true;
+    }
     if (Object.keys(userData).length) {
       await prisma.user.update({ where: { id: prev.userId }, data: userData });
     }

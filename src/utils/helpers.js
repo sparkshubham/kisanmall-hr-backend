@@ -12,6 +12,7 @@ export function formatUser(user) {
     email: user.email || null,
     role: user.role,
     isActive: user.isActive,
+    mustChangePassword: Boolean(user.mustChangePassword),
     employeeId: user.employee?.id ?? user.employeeId ?? null,
     employeeCode: user.employee?.employeeCode ?? null,
   };

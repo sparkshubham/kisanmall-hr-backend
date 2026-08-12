@@ -106,15 +106,16 @@ enum FaceStatus {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  name         String
-  mobile       String   @unique
-  email        String?  @unique
-  passwordHash String
-  role         Role     @default(STAFF)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  name               String
+  mobile             String   @unique
+  email              String?  @unique
+  passwordHash       String
+  role               Role     @default(STAFF)
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   employee              Employee?
   auditLogs             AuditLog[]

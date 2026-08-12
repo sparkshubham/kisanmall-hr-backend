@@ -41,6 +41,7 @@ export async function attachUser(req, res, next) {
         email: true,
         role: true,
         isActive: true,
+        mustChangePassword: true,
         employee: {
           select: {
             id: true,

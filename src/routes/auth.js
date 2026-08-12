@@ -57,7 +57,6 @@ router.post(
       mobile: user.mobile,
     });
 
-    // Don't block login on audit write (extra DB round-trip)
     void writeAudit(req, {
       action: 'LOGIN',
       entity: 'User',
@@ -65,11 +64,12 @@ router.post(
       newData: { portal: portal || 'auto', role: user.role },
     });
 
+    const formatted = formatUser(user);
     return res.json({
       success: true,
       token,
-      user: formatUser(user),
-      data: { token, user: formatUser(user) },
+      user: formatted,
+      data: { token, user: formatted },
     });
   })
 );
@@ -81,5 +81,62 @@ router.get('/me', authenticate, attachUser, (req, res) => {
     data: { user: formatUser(req.currentUser) },
   });
 });
+
+router.post(
+  '/change-password',
+  authenticate,
+  attachUser,
+  asyncHandler(async (req, res) => {
+    const currentPassword = String(req.body.currentPassword || '');
+    const newPassword = String(req.body.newPassword || '');
+    const confirmPassword = String(req.body.confirmPassword || '');
+
+    if (!currentPassword || !newPassword) {
+      return fail(res, 'Current password and new password are required', 400);
+    }
+    if (newPassword.length < 6) {
+      return fail(res, 'New password must be at least 6 characters', 400);
+    }
+    if (confirmPassword && confirmPassword !== newPassword) {
+      return fail(res, 'New password and confirm password do not match', 400);
+    }
+    if (currentPassword === newPassword) {
+      return fail(res, 'New password must be different from current password', 400);
+    }
+
+    const dbUser = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!dbUser) return fail(res, 'User not found', 404);
+
+    const valid = await bcrypt.compare(currentPassword, dbUser.passwordHash);
+    if (!valid) return fail(res, 'Current password is incorrect', 400);
+
+    const updated = await prisma.user.update({
+      where: { id: dbUser.id },
+      data: {
+        passwordHash: await bcrypt.hash(newPassword, 10),
+        mustChangePassword: false,
+      },
+      include: {
+        employee: {
+          select: { id: true, employeeCode: true, firstName: true, lastName: true, status: true },
+        },
+      },
+    });
+
+    void writeAudit(req, {
+      action: 'PASSWORD_CHANGED',
+      entity: 'User',
+      entityId: updated.id,
+      newData: { mustChangePassword: false },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Password updated successfully',
+      user: formatUser(updated),
+      data: { user: formatUser(updated) },
+    });
+  })
+);
 
 export default router;
